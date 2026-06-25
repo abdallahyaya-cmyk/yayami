@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Çad Akıllı Trafik Sistemi - Prototip</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Retro telefon fontu için */
+        @import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
+        .ussd-screen { font-family: 'VT323', monospace; }
+        .hidden-tab { display: none; }
+    </style>
+</head>
+<body class="bg-slate-100 min-h-screen flex items-center justify-center p-4">
+
+    <!-- Ana Konteyner -->
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden border border-slate-200">
+        
+        <!-- Üst Başlık (Header) -->
+        <div class="bg-emerald-700 text-white p-4 flex justify-between items-center">
+            <div>
+                <h1 class="text-lg font-bold">N'Djamena Trafik</h1>
+                <p class="text-xs text-emerald-200">Offline-First Sistem (Bağlantı: Zayıf)</p>
+            </div>
+            <div class="flex space-x-1">
+                <!-- Sinyal İkonu -->
+                <svg class="w-5 h-5 text-emerald-300" fill="currentColor" viewBox="0 0 20 20"><path d="M2 11.142A11.956 11.956 0 0110 8c2.586 0 4.982.81 6.967 2.182a.75.75 0 001.066-1.06c-2.264-1.638-5.045-2.622-8.033-2.622-2.988 0-5.769.984-8.033 2.622a.75.75 0 001.033 1.02z"/><path d="M5.5 14.142A7.962 7.962 0 0110 12.5c1.71 0 3.29.539 4.6 1.458a.75.75 0 001.033-1.059A9.46 9.46 0 0010 11c-2.036 0-3.921.64-5.633 1.741a.75.75 0 001.133 1.401z"/><path d="M10 15.5a1.5 1.5 0 100 3 1.5 1.5 0 000-3z"/></svg>
+            </div>
+        </div>
+
+        <!-- Sekmeler (Tabs) -->
+        <div class="flex border-b border-slate-200 bg-slate-50">
+            <button onclick="switchTab('polisTab')" id="btn-polisTab" class="flex-1 py-3 text-sm font-semibold text-emerald-700 border-b-2 border-emerald-700">👮 Polis Paneli</button>
+            <button onclick="switchTab('ussdTab')" id="btn-ussdTab" class="flex-1 py-3 text-sm font-semibold text-slate-500 hover:text-emerald-700">📱 Vatandaş USSD</button>
+        </div>
+
+        <!-- İÇERİK 1: POLİS MOBİL UYGULAMASI -->
+        <div id="polisTab" class="p-5">
+            <h2 class="text-slate-700 font-bold mb-4">Araç & İhlal Sorgulama</h2>
+            <p class="text-xs text-slate-500 mb-4">Sistem sadece 10KB veri gönderimi yapar.</p>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Plaka No</label>
+                    <div class="flex space-x-2">
+                        <input type="text" id="plakaInput" placeholder="Örn: TCH-4521" class="flex-1 border border-slate-300 rounded-lg px-3 py-2 uppercase focus:ring-2 focus:ring-emerald-500 outline-none">
+                        <button onclick="sorgula()" class="bg-slate-800 text-white px-4 py-2 rounded-lg font-medium hover:bg-slate-700 transition">Sorgula</button>
+                    </div>
+                </div>
+
+                <!-- Sorgu Sonucu (Başlangıçta Gizli) -->
+                <div id="sorguSonucu" class="hidden bg-slate-50 p-4 rounded-lg border border-slate-200 space-y-3 mt-4">
+                    <div class="flex justify-between items-center border-b pb-2">
+                        <span class="text-sm font-bold text-slate-600">Araç Bilgisi:</span>
+                        <span class="text-sm text-slate-800" id="sonucPlaka">TCH-4521</span>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Tespit Edilen İhlal (Edge AI)</label>
+                        <select id="ihlalTipi" class="w-full border border-slate-300 rounded-lg px-3 py-2 bg-white outline-none">
+                            <option value="kask">Kasksız Motosiklet Kullanımı (15,000 CFA)</option>
+                            <option value="ters">Ters Yön İhlali (25,000 CFA)</option>
+                            <option value="hiz">Aşırı Hız (20,000 CFA)</option>
+                        </select>
+                    </div>
+
+                    <button onclick="cezaKes()" class="w-full bg-red-600 text-white px-4 py-3 rounded-lg font-bold hover:bg-red-700 transition flex items-center justify-center space-x-2 mt-4">
+                        <span>Ceza Kes & SMS Gönder</span>
+                    </button>
+                </div>
+
+                <!-- Başarı Mesajı (Başlangıçta Gizli) -->
+                <div id="basariMesaji" class="hidden bg-green-100 border border-green-300 text-green-800 p-3 rounded-lg text-sm mt-4 text-center">
+                    ✅ İhlal kaydedildi! Sürücüye <strong>Airtel/Moov Money</strong> ödeme linki SMS olarak iletildi.
+                </div>
+            </div>
+        </div>
+
+        <!-- İÇERİK 2: VATANDAŞ USSD MODÜLÜ -->
+        <div id="ussdTab" class="hidden-tab p-5 bg-slate-800 min-h-[400px] flex flex-col items-center justify-center">
+            
+            <!-- Eski Tip Telefon Ekranı -->
+            <div class="bg-green-600 w-full rounded-xl p-4 shadow-inner border-4 border-slate-700 h-64 flex flex-col relative">
+                <div id="ussdEkran" class="ussd-screen text-slate-900 text-lg leading-tight flex-1 whitespace-pre-line">
+Lütfen bekleyiniz...
+                </div>
+                <div class="flex space-x-2 mt-2">
+                    <input type="text" id="ussdInput" class="flex-1 bg-green-500 border-2 border-green-700 text-slate-900 px-2 py-1 ussd-screen outline-none focus:bg-green-400" autocomplete="off">
+                    <button onclick="ussdGonder()" class="bg-slate-700 text-white text-xs font-bold px-3 py-1 rounded">GÖNDER</button>
+                </div>
+            </div>
+            
+            <p class="text-slate-400 text-xs mt-4 text-center">Akıllı telefon gerektirmeyen tuşlu telefon simülasyonu. Başlamak için ekrana <strong>*123#</strong> yazıp gönderin.</p>
+        </div>
+
+    </div>
+
+    <!-- JavaScript Etkileşimleri -->
+    <script>
+        // Tab Değiştirme Mantığı
+        function switchTab(tabId) {
+            document.getElementById('polisTab').classList.add('hidden-tab');
+            document.getElementById('ussdTab').classList.add('hidden-tab');
+            document.getElementById(tabId).classList.remove('hidden-tab');
+
+            document.getElementById('btn-polisTab').className = "flex-1 py-3 text-sm font-semibold text-slate-500 hover:text-emerald-700";
+            document.getElementById('btn-ussdTab').className = "flex-1 py-3 text-sm font-semibold text-slate-500 hover:text-emerald-700";
+            
+            document.getElementById('btn-' + tabId).className = "flex-1 py-3 text-sm font-semibold text-emerald-700 border-b-2 border-emerald-700";
+
+            if(tabId === 'ussdTab') resetUSSD();
+        }
+
+        // Polis Paneli İşlevleri
+        function sorgula() {
+            const plaka = document.getElementById('plakaInput').value;
+            if(!plaka) {
+                alert("Lütfen bir plaka girin.");
+                return;
+            }
+            // Offline simülasyonu: Bekleme süresi kısa, cihazdan okuma yapılıyor gibi.
+            document.getElementById('basariMesaji').classList.add('hidden');
+            document.getElementById('sorguSonucu').classList.remove('hidden');
+            document.getElementById('sonucPlaka').innerText = plaka.toUpperCase();
+        }
+
+        function cezaKes() {
+            document.getElementById('sorguSonucu').classList.add('hidden');
+            document.getElementById('basariMesaji').classList.remove('hidden');
+            document.getElementById('plakaInput').value = '';
+        }
+
+        // USSD Simülasyonu İşlevleri
+        let ussdState = 0;
+        const ekran = document.getElementById('ussdEkran');
+        const input = document.getElementById('ussdInput');
+
+        function resetUSSD() {
+            ussdState = 0;
+            input.value = '*123#';
+            ekran.innerText = "";
+        }
+
+        function ussdGonder() {
+            const val = input.value.trim();
+            input.value = '';
+
+            if (ussdState === 0 && val === '*123#') {
+                ekran.innerText = "Trafik Bildirim Merkezi\n\n1. Kaza Bildir\n2. Yol Kapalı\n3. Işık Arızası\n\nCevap yazın:";
+                ussdState = 1;
+            } 
+            else if (ussdState === 1) {
+                if (val === '1' || val === '2' || val === '3') {
+                    ekran.innerText = "Bildiriminiz merkeze ulasti. Konumunuz baz istasyonundan alindi. Ekipler yonlendiriliyor.\n\nTesekkurler.";
+                    ussdState = 2;
+                } else {
+                    ekran.innerText = "Hatali tuslama.\n1. Kaza\n2. Yol\n3. Ariza\nCevap:";
+                }
+            }
+            else if (ussdState === 2) {
+                resetUSSD();
+            }
+            else {
+                ekran.innerText = "Sisteme girmek icin *123# tuslayin.";
+                ussdState = 0;
+            }
+        }
+
+        // Enter tuşu desteği
+        input.addEventListener("keypress", function(event) {
+            if (event.key === "Enter") {
+                event.preventDefault();
+                ussdGonder();
+            }
+        });
+    </script>
+</body>
+</html>
